@@ -1,14 +1,4 @@
-from fastapi import FastAPI
-
 try:
-    from backend.app.routers.auth import router as auth_router
+    from backend.app.main import app
 except ModuleNotFoundError:
-    from app.routers.auth import router as auth_router
-
-app = FastAPI()
-app.include_router(auth_router)
-
-
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+    from app.main import app

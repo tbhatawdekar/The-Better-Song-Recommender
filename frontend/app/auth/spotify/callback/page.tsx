@@ -1,12 +1,63 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 export default function SpotifyCallbackPage() {
   const searchParams = useSearchParams();
-  const code = searchParams.get("code");
-  const error = searchParams.get("error");
+  const code = useMemo(() => searchParams.get("code"), [searchParams]);
+  const state = useMemo(() => searchParams.get("state"), [searchParams]);
+  const error = useMemo(() => searchParams.get("error"), [searchParams]);
+
+  const [exchangeStatus, setExchangeStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [exchangeMessage, setExchangeMessage] = useState<string>("");
+
+  useEffect(() => {
+    if (!code || error) return;
+
+    let cancelled = false;
+    async function runExchange() {
+      setExchangeStatus("loading");
+      setExchangeMessage("Exchanging code with backend...");
+
+      const params = new URLSearchParams({ code });
+      if (state) params.set("state", state);
+
+      try {
+        const res = await fetch(`/api/auth/spotify/exchange?${params.toString()}`, {
+          method: "GET",
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (!res.ok) {
+          const detail =
+            typeof data?.detail === "string"
+              ? data.detail
+              : "Backend token exchange failed.";
+          setExchangeStatus("error");
+          setExchangeMessage(detail);
+          return;
+        }
+
+        setExchangeStatus("success");
+        setExchangeMessage("Backend token exchange succeeded.");
+      } catch {
+        if (cancelled) return;
+        setExchangeStatus("error");
+        setExchangeMessage("Could not reach backend token exchange endpoint.");
+      }
+    }
+
+    void runExchange();
+    return () => {
+      cancelled = true;
+    };
+  }, [code, error, state]);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl items-center px-5 py-12">
@@ -25,12 +76,25 @@ export default function SpotifyCallbackPage() {
           {error
             ? "Spotify returned an authorization error."
             : code
-              ? "Authorization code received. You can exchange it for tokens in your backend next."
+              ? "Authorization code received. Exchanging with backend now."
               : "No code found in the callback URL yet."}
         </p>
+        {code && !error ? (
+          <div className="mt-3 text-sm text-slate-700">
+            <span className="font-semibold">Exchange status:</span>{" "}
+            {exchangeStatus === "loading" && "running"}
+            {exchangeStatus === "success" && "complete"}
+            {exchangeStatus === "error" && "failed"}
+            {exchangeStatus === "idle" && "idle"}
+            {exchangeMessage ? ` - ${exchangeMessage}` : ""}
+          </div>
+        ) : null}
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
           <p>
             <span className="font-semibold">code:</span> {code ?? "none"}
+          </p>
+          <p className="mt-2">
+            <span className="font-semibold">state:</span> {state ?? "none"}
           </p>
           <p className="mt-2">
             <span className="font-semibold">error:</span> {error ?? "none"}

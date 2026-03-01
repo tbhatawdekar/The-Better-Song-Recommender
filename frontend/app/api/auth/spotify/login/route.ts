@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const DEFAULT_SCOPES = ["user-read-email", "user-read-private"];
+const DEFAULT_SCOPES = [
+  "user-read-email",
+  "user-read-private",
+  "playlist-modify-private",
+  "playlist-modify-public",
+];
 
 export async function GET(request: NextRequest) {
   const clientId =
